@@ -1,6 +1,6 @@
 # Deploy and Host Onyx with Railway
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/onyx-v4-enterprise-ai-search)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/onyx-v4-enterprise-ai-search?referralCode=20H68q)
 
 Onyx is an open-source AI platform for enterprise search and chat: it connects to tools like Slack, Google Drive, Confluence, Jira and GitHub, indexes their content and answers questions with citations using the LLM of your choice. This community template deploys the full Onyx v4 stack on Railway, including connectors, document indexing and local embedding models.
 
