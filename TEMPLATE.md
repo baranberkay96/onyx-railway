@@ -3,7 +3,7 @@
 ## Listing
 
 - **Name:** Onyx v4 Enterprise AI Search (LISTINGS.md name with the pinned major version inserted; Onyx tags releases `v4.x.y`)
-- **Description (78 chars):** Ask questions across Slack, Drive, Confluence and more. Self-hosted AI search. (unchanged)
+- **Description (78 chars):** Ask questions across Slack, Drive, Confluence and more with self-hosted AI. (unchanged)
 - **Category:** AI/ML
 - **Tags:** onyx, enterprise-search, rag, ai-chat, opensearch, connectors, llm
 
