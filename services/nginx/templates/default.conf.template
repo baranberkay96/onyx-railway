@@ -1,0 +1,94 @@
+# Adapted from onyx-dot-app/onyx deployment/data/nginx/app.conf.template (v4.9.0, MIT).
+# Railway changes: upstreams are resolved at request time through variables (no
+# crash if a backend is not up yet), IPv4+IPv6 listeners, X-Forwarded-Proto taken
+# from Railway's edge, MCP includes removed.
+server_tokens off;
+
+resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+# Railway terminates TLS at its edge and sends X-Forwarded-Proto: https.
+map $http_x_forwarded_proto $onyx_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+log_format onyx_main '$remote_addr - $remote_user [$time_local] "$request" '
+                     '$status $body_bytes_sent "$http_referer" '
+                     '"$http_user_agent" "$http_x_forwarded_for" rt=$request_time';
+
+server {
+    listen ${PORT} default_server;
+    listen [::]:${PORT} default_server;
+
+    client_max_body_size 5G;
+    access_log /var/log/nginx/access.log onyx_main;
+
+    set $onyx_api http://${ONYX_API_HOST}:8080;
+    set $onyx_web http://${ONYX_WEB_HOST}:3000;
+
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    # SAML login/callbacks and SCIM provisioning are backend routes.
+    location ~ ^/(auth/saml|scim)(/.*)?$ {
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $onyx_forwarded_proto;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_redirect off;
+        proxy_connect_timeout ${NGINX_PROXY_CONNECT_TIMEOUT}s;
+        proxy_send_timeout ${NGINX_PROXY_SEND_TIMEOUT}s;
+        proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
+        proxy_pass $onyx_api;
+    }
+
+    # API (prefix /api is stripped) and the OpenAPI schema.
+    location ~ ^/(api|openapi.json)(/.*)?$ {
+        rewrite ^/api(/.*)$ $1 break;
+
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $onyx_forwarded_proto;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Host $host;
+
+        # chunked transfers, streaming chat responses and WebSockets
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+
+        proxy_connect_timeout ${NGINX_PROXY_CONNECT_TIMEOUT}s;
+        proxy_send_timeout ${NGINX_PROXY_SEND_TIMEOUT}s;
+        proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
+
+        proxy_redirect off;
+        proxy_pass $onyx_api;
+    }
+
+    location / {
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $onyx_forwarded_proto;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Host $host;
+        proxy_http_version 1.1;
+
+        proxy_connect_timeout ${NGINX_PROXY_CONNECT_TIMEOUT}s;
+        proxy_send_timeout ${NGINX_PROXY_SEND_TIMEOUT}s;
+        proxy_read_timeout ${NGINX_PROXY_READ_TIMEOUT}s;
+
+        proxy_redirect off;
+        proxy_pass $onyx_web;
+    }
+}

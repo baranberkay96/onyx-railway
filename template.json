@@ -1,0 +1,717 @@
+{
+  "name": "Onyx v4 Enterprise AI Search",
+  "description": "Ask questions across Slack, Drive, Confluence and more. Self-hosted AI search.",
+  "category": "AI/ML",
+  "tags": [
+    "onyx",
+    "enterprise-search",
+    "rag",
+    "ai-chat",
+    "opensearch",
+    "connectors",
+    "llm"
+  ],
+  "upstream": {
+    "repo": "onyx-dot-app/onyx",
+    "version": "v4.9.0",
+    "checked": "2026-10-10"
+  },
+  "services": {
+    "nginx": {
+      "icon": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/nginx.svg",
+      "source": {
+        "repo": "baranberkay96/onyx-railway",
+        "rootDirectory": "/services/nginx"
+      },
+      "startCommand": null,
+      "preDeployCommand": null,
+      "healthcheckPath": "/nginx-health",
+      "healthcheckTimeout": 120,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": true,
+      "targetPort": 80,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "PORT": {
+          "defaultValue": "80",
+          "description": "nginx listen port (public domain target).",
+          "required": false
+        },
+        "ONYX_API_HOST": {
+          "defaultValue": "${{api-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "API server host (port 8080).",
+          "required": false
+        },
+        "ONYX_WEB_HOST": {
+          "defaultValue": "${{web-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Web server host (port 3000).",
+          "required": false
+        },
+        "NGINX_PROXY_CONNECT_TIMEOUT": {
+          "defaultValue": "300",
+          "description": "Upstream connect timeout (s).",
+          "required": false
+        },
+        "NGINX_PROXY_SEND_TIMEOUT": {
+          "defaultValue": "300",
+          "description": "Upstream send timeout (s).",
+          "required": false
+        },
+        "NGINX_PROXY_READ_TIMEOUT": {
+          "defaultValue": "300",
+          "description": "Upstream read timeout (s); raise for very long agent runs.",
+          "required": false
+        }
+      }
+    },
+    "api-server": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/onyx-light.svg",
+      "source": {
+        "image": "onyxdotapp/onyx-backend:v4.9.0"
+      },
+      "startCommand": "/bin/sh -c \"alembic upgrade head && exec uvicorn onyx.main:app --host :: --port 8080\"",
+      "preDeployCommand": null,
+      "healthcheckPath": "/health",
+      "healthcheckTimeout": 900,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": 8080,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "PORT": {
+          "defaultValue": "8080",
+          "description": "API port (private; nginx routes /api here).",
+          "required": false
+        },
+        "USER_AUTH_SECRET": {
+          "defaultValue": "${{secret(64, \"abcdef0123456789\")}}",
+          "description": "Signs password-reset, verification, OAuth-state and captcha tokens. Required by the API server.",
+          "required": false
+        },
+        "ENCRYPTION_KEY_SECRET": {
+          "defaultValue": "${{secret(32, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\")}}",
+          "description": "Encrypts connector credentials and API keys stored in Postgres. Never change after first use.",
+          "required": false
+        },
+        "WEB_DOMAIN": {
+          "defaultValue": "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}",
+          "description": "Public URL (nginx); used for redirects, emails and SSO callbacks.",
+          "required": false
+        },
+        "POSTGRES_HOST": {
+          "defaultValue": "${{Postgres.PGHOST}}",
+          "description": "Postgres host (private network).",
+          "required": false
+        },
+        "POSTGRES_PORT": {
+          "defaultValue": "${{Postgres.PGPORT}}",
+          "description": "Postgres port.",
+          "required": false
+        },
+        "POSTGRES_USER": {
+          "defaultValue": "${{Postgres.POSTGRES_USER}}",
+          "description": "Postgres user.",
+          "required": false
+        },
+        "POSTGRES_PASSWORD": {
+          "defaultValue": "${{Postgres.POSTGRES_PASSWORD}}",
+          "description": "Postgres password.",
+          "required": false
+        },
+        "POSTGRES_DB": {
+          "defaultValue": "${{Postgres.POSTGRES_DB}}",
+          "description": "Postgres database.",
+          "required": false
+        },
+        "REDIS_HOST": {
+          "defaultValue": "${{Redis.REDISHOST}}",
+          "description": "Redis host (Celery broker, cache, login sessions).",
+          "required": false
+        },
+        "REDIS_PORT": {
+          "defaultValue": "${{Redis.REDISPORT}}",
+          "description": "Redis port.",
+          "required": false
+        },
+        "REDIS_PASSWORD": {
+          "defaultValue": "${{Redis.REDIS_PASSWORD}}",
+          "description": "Redis password.",
+          "required": false
+        },
+        "OPENSEARCH_HOST": {
+          "defaultValue": "${{opensearch.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "OpenSearch host (document index, port 9200, HTTPS with the image's self-signed demo certificate).",
+          "required": false
+        },
+        "OPENSEARCH_ADMIN_PASSWORD": {
+          "defaultValue": "${{opensearch.OPENSEARCH_INITIAL_ADMIN_PASSWORD}}",
+          "description": "OpenSearch admin password (reference).",
+          "required": false
+        },
+        "MODEL_SERVER_HOST": {
+          "defaultValue": "${{inference-model-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Inference model server (query embeddings, reranking).",
+          "required": false
+        },
+        "FILE_STORE_BACKEND": {
+          "defaultValue": "s3",
+          "description": "Uploaded files and connector blobs go to S3-compatible storage (SeaweedFS).",
+          "required": false
+        },
+        "S3_ENDPOINT_URL": {
+          "defaultValue": "http://${{SeaweedFS.RAILWAY_PRIVATE_DOMAIN}}:8333",
+          "description": "SeaweedFS S3 endpoint (private network). Onyx uses path-style addressing.",
+          "required": false
+        },
+        "S3_AWS_ACCESS_KEY_ID": {
+          "defaultValue": "${{SeaweedFS.AWS_ACCESS_KEY_ID}}",
+          "description": "SeaweedFS S3 access key.",
+          "required": false
+        },
+        "S3_AWS_SECRET_ACCESS_KEY": {
+          "defaultValue": "${{SeaweedFS.AWS_SECRET_ACCESS_KEY}}",
+          "description": "SeaweedFS S3 secret key.",
+          "required": false
+        },
+        "S3_FILE_STORE_BUCKET_NAME": {
+          "defaultValue": "onyx-file-store-bucket",
+          "description": "Bucket created by Onyx on first start.",
+          "required": false
+        },
+        "AWS_REGION_NAME": {
+          "defaultValue": "us-east-1",
+          "description": "Region sent to the S3 client; us-east-1 avoids a LocationConstraint when Onyx creates the bucket.",
+          "required": false
+        },
+        "ENABLE_PAID_ENTERPRISE_EDITION_FEATURES": {
+          "defaultValue": "false",
+          "description": "Enterprise features need an Onyx license.",
+          "required": false
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "description": "Log level for API, Celery workers and bots.",
+          "required": false
+        },
+        "VALID_EMAIL_DOMAINS": {
+          "defaultValue": "",
+          "description": "Optional. Comma-separated email domains allowed to sign up (e.g. example.com). Empty = anyone with the URL can register.",
+          "required": false
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "60",
+          "description": "Let streaming chat responses finish during redeploys.",
+          "required": false
+        }
+      }
+    },
+    "background": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/onyx-light.svg",
+      "source": {
+        "image": "onyxdotapp/onyx-backend:v4.9.0"
+      },
+      "startCommand": "/app/scripts/supervisord_entrypoint.sh",
+      "preDeployCommand": null,
+      "healthcheckPath": null,
+      "healthcheckTimeout": null,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": null,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "USER_AUTH_SECRET": {
+          "defaultValue": "${{api-server.USER_AUTH_SECRET}}",
+          "description": "Must match api-server.",
+          "required": false
+        },
+        "ENCRYPTION_KEY_SECRET": {
+          "defaultValue": "${{api-server.ENCRYPTION_KEY_SECRET}}",
+          "description": "Must match api-server.",
+          "required": false
+        },
+        "WEB_DOMAIN": {
+          "defaultValue": "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}",
+          "description": "Public URL (nginx); used for redirects, emails and SSO callbacks.",
+          "required": false
+        },
+        "POSTGRES_HOST": {
+          "defaultValue": "${{Postgres.PGHOST}}",
+          "description": "Postgres host (private network).",
+          "required": false
+        },
+        "POSTGRES_PORT": {
+          "defaultValue": "${{Postgres.PGPORT}}",
+          "description": "Postgres port.",
+          "required": false
+        },
+        "POSTGRES_USER": {
+          "defaultValue": "${{Postgres.POSTGRES_USER}}",
+          "description": "Postgres user.",
+          "required": false
+        },
+        "POSTGRES_PASSWORD": {
+          "defaultValue": "${{Postgres.POSTGRES_PASSWORD}}",
+          "description": "Postgres password.",
+          "required": false
+        },
+        "POSTGRES_DB": {
+          "defaultValue": "${{Postgres.POSTGRES_DB}}",
+          "description": "Postgres database.",
+          "required": false
+        },
+        "REDIS_HOST": {
+          "defaultValue": "${{Redis.REDISHOST}}",
+          "description": "Redis host (Celery broker, cache, login sessions).",
+          "required": false
+        },
+        "REDIS_PORT": {
+          "defaultValue": "${{Redis.REDISPORT}}",
+          "description": "Redis port.",
+          "required": false
+        },
+        "REDIS_PASSWORD": {
+          "defaultValue": "${{Redis.REDIS_PASSWORD}}",
+          "description": "Redis password.",
+          "required": false
+        },
+        "OPENSEARCH_HOST": {
+          "defaultValue": "${{opensearch.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "OpenSearch host (document index, port 9200, HTTPS with the image's self-signed demo certificate).",
+          "required": false
+        },
+        "OPENSEARCH_ADMIN_PASSWORD": {
+          "defaultValue": "${{opensearch.OPENSEARCH_INITIAL_ADMIN_PASSWORD}}",
+          "description": "OpenSearch admin password (reference).",
+          "required": false
+        },
+        "MODEL_SERVER_HOST": {
+          "defaultValue": "${{inference-model-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Inference model server (query embeddings, reranking).",
+          "required": false
+        },
+        "FILE_STORE_BACKEND": {
+          "defaultValue": "s3",
+          "description": "Uploaded files and connector blobs go to S3-compatible storage (SeaweedFS).",
+          "required": false
+        },
+        "S3_ENDPOINT_URL": {
+          "defaultValue": "http://${{SeaweedFS.RAILWAY_PRIVATE_DOMAIN}}:8333",
+          "description": "SeaweedFS S3 endpoint (private network). Onyx uses path-style addressing.",
+          "required": false
+        },
+        "S3_AWS_ACCESS_KEY_ID": {
+          "defaultValue": "${{SeaweedFS.AWS_ACCESS_KEY_ID}}",
+          "description": "SeaweedFS S3 access key.",
+          "required": false
+        },
+        "S3_AWS_SECRET_ACCESS_KEY": {
+          "defaultValue": "${{SeaweedFS.AWS_SECRET_ACCESS_KEY}}",
+          "description": "SeaweedFS S3 secret key.",
+          "required": false
+        },
+        "S3_FILE_STORE_BUCKET_NAME": {
+          "defaultValue": "onyx-file-store-bucket",
+          "description": "Bucket created by Onyx on first start.",
+          "required": false
+        },
+        "AWS_REGION_NAME": {
+          "defaultValue": "us-east-1",
+          "description": "Region sent to the S3 client; us-east-1 avoids a LocationConstraint when Onyx creates the bucket.",
+          "required": false
+        },
+        "ENABLE_PAID_ENTERPRISE_EDITION_FEATURES": {
+          "defaultValue": "false",
+          "description": "Enterprise features need an Onyx license.",
+          "required": false
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "description": "Log level for API, Celery workers and bots.",
+          "required": false
+        },
+        "INDEXING_MODEL_SERVER_HOST": {
+          "defaultValue": "${{indexing-model-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Indexing model server (document embeddings).",
+          "required": false
+        },
+        "API_SERVER_PROTOCOL": {
+          "defaultValue": "http",
+          "description": "Protocol for internal calls to the API (Discord bot).",
+          "required": false
+        },
+        "API_SERVER_HOST": {
+          "defaultValue": "${{api-server.RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "API server host for internal calls.",
+          "required": false
+        },
+        "DISCORD_BOT_TOKEN": {
+          "defaultValue": "",
+          "description": "Optional. Enables the Discord bot.",
+          "required": false
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "120",
+          "description": "Give Celery workers time to finish tasks during redeploys.",
+          "required": false
+        }
+      }
+    },
+    "web-server": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/onyx-light.svg",
+      "source": {
+        "image": "onyxdotapp/onyx-web-server:v4.9.0"
+      },
+      "startCommand": null,
+      "preDeployCommand": null,
+      "healthcheckPath": "/logo.png",
+      "healthcheckTimeout": 300,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": 3000,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "PORT": {
+          "defaultValue": "3000",
+          "description": "Next.js port (private; nginx routes / here).",
+          "required": false
+        },
+        "HOSTNAME": {
+          "defaultValue": "::",
+          "description": "Bind address; :: accepts IPv4 and IPv6 from nginx.",
+          "required": false
+        },
+        "INTERNAL_URL": {
+          "defaultValue": "http://${{api-server.RAILWAY_PRIVATE_DOMAIN}}:8080",
+          "description": "API URL used for server-side rendering.",
+          "required": false
+        },
+        "WEB_DOMAIN": {
+          "defaultValue": "https://${{nginx.RAILWAY_PUBLIC_DOMAIN}}",
+          "description": "Public URL.",
+          "required": false
+        }
+      }
+    },
+    "inference-model-server": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/onyx-light.svg",
+      "source": {
+        "image": "onyxdotapp/onyx-model-server:v4.9.0"
+      },
+      "startCommand": "python -m uvicorn model_server.main:app --host :: --port 9000",
+      "preDeployCommand": null,
+      "healthcheckPath": "/api/health",
+      "healthcheckTimeout": 900,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": 9000,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "PORT": {
+          "defaultValue": "9000",
+          "description": "Model server port (Railway healthcheck).",
+          "required": false
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "description": "Log level.",
+          "required": false
+        }
+      }
+    },
+    "indexing-model-server": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/onyx-light.svg",
+      "source": {
+        "image": "onyxdotapp/onyx-model-server:v4.9.0"
+      },
+      "startCommand": "python -m uvicorn model_server.main:app --host :: --port 9000",
+      "preDeployCommand": null,
+      "healthcheckPath": "/api/health",
+      "healthcheckTimeout": 900,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": 9000,
+      "tcpProxy": null,
+      "volume": null,
+      "variables": {
+        "PORT": {
+          "defaultValue": "9000",
+          "description": "Model server port (Railway healthcheck).",
+          "required": false
+        },
+        "INDEXING_ONLY": {
+          "defaultValue": "True",
+          "description": "Indexing mode: serves document embedding requests from the background workers.",
+          "required": false
+        },
+        "LOG_LEVEL": {
+          "defaultValue": "info",
+          "description": "Log level.",
+          "required": false
+        }
+      }
+    },
+    "opensearch": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/opensearch.svg",
+      "source": {
+        "repo": "baranberkay96/onyx-railway",
+        "rootDirectory": "/services/opensearch"
+      },
+      "startCommand": null,
+      "preDeployCommand": null,
+      "healthcheckPath": null,
+      "healthcheckTimeout": null,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": null,
+      "tcpProxy": null,
+      "volume": {
+        "mountPath": "/usr/share/opensearch/data"
+      },
+      "variables": {
+        "discovery.type": {
+          "defaultValue": "single-node",
+          "description": "Single-node cluster (as upstream).",
+          "required": false
+        },
+        "OPENSEARCH_INITIAL_ADMIN_PASSWORD": {
+          "defaultValue": "Os1-${{secret(32, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\")}}",
+          "description": "Admin password for the security plugin (prefix guarantees upper/lower/digit/special).",
+          "required": false
+        },
+        "OPENSEARCH_JAVA_OPTS": {
+          "defaultValue": "-Xms2g -Xmx2g",
+          "description": "JVM heap (upstream value). Keep about half of the RAM OpenSearch may use.",
+          "required": false
+        },
+        "bootstrap.memory_lock": {
+          "defaultValue": "false",
+          "description": "memlock ulimits cannot be raised on Railway.",
+          "required": false
+        },
+        "node.store.allow_mmap": {
+          "defaultValue": "false",
+          "description": "Do not depend on the host's vm.max_map_count, which containers cannot change.",
+          "required": false
+        },
+        "network.host": {
+          "defaultValue": "::",
+          "description": "Listen on IPv6 and IPv4 for private-network clients.",
+          "required": false
+        },
+        "DISABLE_PERFORMANCE_ANALYZER_AGENT_CLI": {
+          "defaultValue": "true",
+          "description": "Do not start the Performance Analyzer side JVM (saves ~0.3 GB).",
+          "required": false
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "60",
+          "description": "Allow a clean shutdown on redeploy.",
+          "required": false
+        }
+      }
+    },
+    "Postgres": {
+      "icon": "https://devicons.railway.app/i/postgresql.svg",
+      "source": {
+        "image": "ghcr.io/railwayapp-templates/postgres-ssl:18"
+      },
+      "startCommand": "/usr/bin/tini -g -- /usr/local/bin/wrapper.sh postgres -p 5432 -c listen_addresses=* -c max_connections=250",
+      "preDeployCommand": null,
+      "healthcheckPath": null,
+      "healthcheckTimeout": null,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": null,
+      "tcpProxy": null,
+      "volume": {
+        "mountPath": "/var/lib/postgresql/data"
+      },
+      "variables": {
+        "PGDATA": {
+          "defaultValue": "/var/lib/postgresql/data/pgdata",
+          "description": "Location where the database will be initialized",
+          "required": false
+        },
+        "PGHOST": {
+          "defaultValue": "${{RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Railway Private Domain Name.",
+          "required": false
+        },
+        "PGPORT": {
+          "defaultValue": "5432",
+          "description": "Port to connect to Postgres.",
+          "required": false
+        },
+        "PGUSER": {
+          "defaultValue": "${{ POSTGRES_USER }}",
+          "description": "Required variable for Data panel",
+          "required": false
+        },
+        "PGDATABASE": {
+          "defaultValue": "${{POSTGRES_DB}}",
+          "description": "Required variable for the data panel.",
+          "required": false
+        },
+        "PGPASSWORD": {
+          "defaultValue": "${{POSTGRES_PASSWORD}}",
+          "description": "Required variable for Data panel",
+          "required": false
+        },
+        "POSTGRES_DB": {
+          "defaultValue": "railway",
+          "description": "Default database created when image is started.",
+          "required": false
+        },
+        "DATABASE_URL": {
+          "defaultValue": "postgresql://${{PGUSER}}:${{POSTGRES_PASSWORD}}@${{RAILWAY_PRIVATE_DOMAIN}}:5432/${{PGDATABASE}}",
+          "description": "URL to connect to Postgres database.",
+          "required": false
+        },
+        "POSTGRES_USER": {
+          "defaultValue": "postgres",
+          "description": "User to connect to Postgres DB",
+          "required": false
+        },
+        "SSL_CERT_DAYS": {
+          "defaultValue": "820",
+          "description": "SSL certificate expiry in days.",
+          "required": false
+        },
+        "POSTGRES_PASSWORD": {
+          "defaultValue": "${{ secret(32, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\") }}",
+          "description": "Password to connect to DB",
+          "required": false
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "60",
+          "description": "Allow Postgres to cleanly shut down",
+          "required": false
+        }
+      }
+    },
+    "Redis": {
+      "icon": "https://cdn.sanity.io/images/sy1jschh/production/0ce0bfdcfbdbf69662b1116671f97c2dd788b655-157x157.svg",
+      "source": {
+        "image": "redis:8.2"
+      },
+      "startCommand": "/bin/sh -c \"rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH\"",
+      "preDeployCommand": null,
+      "healthcheckPath": null,
+      "healthcheckTimeout": null,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": null,
+      "tcpProxy": null,
+      "volume": {
+        "mountPath": "/data"
+      },
+      "variables": {
+        "REDISHOST": {
+          "defaultValue": "${{RAILWAY_PRIVATE_DOMAIN}}",
+          "description": "Private network hostname of the Redis service, only resolvable from services in the same environment",
+          "required": false
+        },
+        "REDISPORT": {
+          "defaultValue": "6379",
+          "description": "Port that Redis listens on",
+          "required": false
+        },
+        "REDISUSER": {
+          "defaultValue": "default",
+          "description": "Username for authenticating with Redis",
+          "required": false
+        },
+        "REDIS_URL": {
+          "defaultValue": "redis://${{ REDISUSER }}:${{ REDIS_PASSWORD }}@${{ REDISHOST }}:${{ REDISPORT }}",
+          "description": "Connection string for connecting to Redis using the private network",
+          "required": false
+        },
+        "REDISPASSWORD": {
+          "defaultValue": "${{REDIS_PASSWORD}}",
+          "description": "Alias of REDIS_PASSWORD for clients that expect the unseparated name",
+          "required": false
+        },
+        "REDIS_PASSWORD": {
+          "defaultValue": "${{ secret(32, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\") }}",
+          "description": "Randomly generated password for authenticating with Redis",
+          "required": false
+        }
+      }
+    },
+    "SeaweedFS": {
+      "icon": "https://cdn.jsdelivr.net/gh/selfhst/icons@main/svg/seaweedfs.svg",
+      "source": {
+        "image": "chrislusf/seaweedfs:4.48"
+      },
+      "startCommand": "/entrypoint.sh server -ip=127.0.0.1 -ip.bind=:: -s3 -s3.port=8333",
+      "preDeployCommand": null,
+      "healthcheckPath": "/healthz",
+      "healthcheckTimeout": 120,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 10,
+      "numReplicas": 1,
+      "cronSchedule": null,
+      "publicDomain": false,
+      "targetPort": 8333,
+      "tcpProxy": null,
+      "volume": {
+        "mountPath": "/data"
+      },
+      "variables": {
+        "AWS_ACCESS_KEY_ID": {
+          "defaultValue": "${{secret(20, \"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\")}}",
+          "description": "Admin access key for the S3 gateway (SeaweedFS reads it from the environment).",
+          "required": false
+        },
+        "AWS_SECRET_ACCESS_KEY": {
+          "defaultValue": "${{secret(40, \"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\")}}",
+          "description": "Admin secret key for the S3 gateway.",
+          "required": false
+        },
+        "PORT": {
+          "defaultValue": "8333",
+          "description": "S3 gateway port; Railway healthcheck uses /healthz.",
+          "required": false
+        },
+        "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": {
+          "defaultValue": "30",
+          "description": "Allow a clean shutdown on redeploy.",
+          "required": false
+        }
+      }
+    }
+  },
+  "buckets": []
+}
