@@ -73,7 +73,7 @@
       "source": {
         "image": "onyxdotapp/onyx-backend:v4.9.0"
       },
-      "startCommand": "/bin/sh -c \"alembic upgrade head && exec uvicorn onyx.main:app --host :: --port 8080\"",
+      "startCommand": "/bin/sh -c \"alembic upgrade head && exec uvicorn onyx.main:app --host 0.0.0.0 --port 8080\"",
       "preDeployCommand": null,
       "healthcheckPath": "/health",
       "healthcheckTimeout": 900,
@@ -413,7 +413,7 @@
       "source": {
         "image": "onyxdotapp/onyx-model-server:v4.9.0"
       },
-      "startCommand": "python -m uvicorn model_server.main:app --host :: --port 9000",
+      "startCommand": "python -m uvicorn model_server.main:app --host 0.0.0.0 --port 9000",
       "preDeployCommand": null,
       "healthcheckPath": "/api/health",
       "healthcheckTimeout": 900,
@@ -443,7 +443,7 @@
       "source": {
         "image": "onyxdotapp/onyx-model-server:v4.9.0"
       },
-      "startCommand": "python -m uvicorn model_server.main:app --host :: --port 9000",
+      "startCommand": "python -m uvicorn model_server.main:app --host 0.0.0.0 --port 9000",
       "preDeployCommand": null,
       "healthcheckPath": "/api/health",
       "healthcheckTimeout": 900,

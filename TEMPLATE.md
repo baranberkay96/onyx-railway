@@ -375,3 +375,7 @@ Railway prices: RAM $10/GB-month, vCPU $20/vCPU-month, volume $0.15/GB-month.
 - **Code interpreter tool** is not available (needs Docker socket).
 - **Background is one container** (upstream docker layout); very large deployments may want Onyx's Kubernetes split per Celery worker.
 - Not deploy-tested in this package (local files only).
+
+## Deploy test findings (2026-10-11)
+
+Not yet deploy-tested, but api-server and both model servers used single-worker uvicorn on `::`, which is IPv6-only (asyncio sets IPV6_V6ONLY); this failed Dify's agent backend healthcheck. Fix applied pre-emptively: `--host 0.0.0.0`.
